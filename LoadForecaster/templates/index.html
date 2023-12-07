@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en" class="h-100">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="Sadot Arefin">
+  <meta name="generator" content="Hugo 0.84.0">
+  <title>iPower - Load Forecaster for Bangladesh</title>
+
+  <link rel="canonical" href="https://getbootstrap.com/docs/5.0/examples/sticky-footer-navbar/">
+
+
+
+  <!-- Bootstrap core CSS -->
+  <link href="{{url_for('static', filename='css/bootstrap.min.css')}}" rel="stylesheet">
+
+  <style>
+    .bd-placeholder-img {
+      font-size: 1.125rem;
+      text-anchor: middle;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      user-select: none;
+    }
+
+    /* Add your styling here */
+    .chart-container {
+      width: 100%;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    table,
+    th,
+    td {
+      border: 1px solid #ccc;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      text-align: left;
+    }
+
+    svg {
+      background-color: white;
+      /* or transparent */
+    }
+
+    @media (min-width: 768px) {
+      .bd-placeholder-img-lg {
+        font-size: 3.5rem;
+      }
+    }
+  </style>
+
+
+  <!-- Custom styles for this template -->
+  <link href="{{url_for('static', filename='css/sticky-footer-navbar.css')}}" rel="stylesheet">
+</head>
+
+<body class="d-flex flex-column h-100">
+
+  <header>
+    <!-- Fixed navbar -->
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">iPower</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+          aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav me-auto mb-2 mb-md-0">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="{{url_for('hello')}}">Home</a>
+            </li>
+          </ul>
+          <form class="d-flex">
+            <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
+            <button class="btn btn-outline-success" type="submit">Search</button>
+          </form>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Begin page content -->
+  <main class="flex-shrink-0">
+    <div class="container-fluid">
+      <div class="row" style="margin-top: 60px">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Load Forecasting of Bangladesh</h5>
+              <div class="row">
+                <div class="col">MSE Value: <span id="mse-value"></span></div>
+                <div class="col">MAE Value: <span id="mae-value"></span></div>
+              </div>
+              <div class="chart-container" id="chart-container"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row pt-4">
+        <div class="col">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Forecast Table</h5>
+              <!-- Dynamic table with datetime, actual value, and forecast will be rendered here -->
+              <table id="data-table" class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Datetime</th>
+                    <th scope="col">Actual Value</th>
+                    <th scope="col">Forecast</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Table body will be dynamically updated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer mt-auto py-3 bg-light">
+    <div class="container">
+      <span class="text-muted">iPower - the ultimate power forecaster.</span>
+    </div>
+  </footer>
+  <script src="{{url_for('static', filename='js/bootstrap.bundle.min.js')}}"></script>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script>
+    // Example D3.js chart logic (replace with your actual implementation)
+    function createChart(data) {
+      const containerWidth = document.getElementById("chart-container").clientWidth;
+      const margin = { top: 20, right: 20, bottom: 100, left: 50 };
+      const width = containerWidth - margin.left - margin.right;
+      const height = 450 - margin.top - margin.bottom;
+
+      d3.select("#chart-container").select("svg").remove();
+
+      // Create an SVG container
+      const svg = d3.select("#chart-container")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      // Set up scales
+      const xScale = d3.scaleTime()
+        .domain(d3.extent(data, d => d.date))
+        .range([0, width]);
+
+      const yScale = d3.scaleLinear()
+        .domain([0, d3.max(data, d => Math.max(d.actual, d.forecasted))])
+        .range([height, 0]);
+
+      // Define the line functions
+      const lineActual = d3.line()
+        .x(d => xScale(d.date))
+        .y(d => yScale(d.actual));
+
+      const lineForecasted = d3.line()
+        .x(d => xScale(d.date))
+        .y(d => yScale(d.forecasted));
+
+      svg.append("path")
+        .data([data])
+        .attr("class", "line-actual")
+        .attr("d", lineActual)
+        .style("stroke", "steelblue")
+        .style("fill", "none"); // Set fill to none for the actual line
+
+      svg.append("path")
+        .data([data])
+        .attr("class", "line-forecasted")
+        .attr("d", lineForecasted)
+        .style("stroke", "crimson")
+        .style("fill", "none");
+
+      // Add x-axis with formatted date and time ticks rotated by 45 degrees
+      svg.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(xScale)
+          .tickFormat(d3.timeFormat("%d-%m-%Y %H:%M")) // Format the ticks to dd-mm-yyyy h:mm
+          .tickPadding(10) // Adjust padding for better visual separation
+        )
+        .selectAll("text")
+        .style("text-anchor", "end")
+        .attr("dx", "-.8em")
+        .attr("dy", ".15em")
+        .attr("transform", "rotate(-45)")
+        .append("text")
+        .attr("x", width / 2)
+        .attr("y", margin.bottom - 10)
+        .attr("fill", "#000")
+        .attr("text-anchor", "middle")
+        .text("DateTime");
+
+      // Add y-axis
+      svg.append("g")
+        .call(d3.axisLeft(yScale))
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -margin.left + 10)
+        .attr("x", -height / 2)
+        .attr("dy", "0.71em")
+        .attr("fill", "#000")
+        .attr("text-anchor", "middle")
+        .text("Demand (MW)");
+
+      // Add legend
+      const legend = svg.append("g")
+        .attr("transform", "translate(" + (width - 100) + "," + 0 + ")");
+
+      legend.append("rect")
+        .attr("width", 10)
+        .attr("height", 10)
+        .attr("fill", "steelblue");
+
+      legend.append("text")
+        .attr("x", 15)
+        .attr("y", 6)
+        .attr("dy", "0.75em")
+        .text("Actual");
+
+      legend.append("rect")
+        .attr("x", 0)
+        .attr("y", 20)
+        .attr("width", 10)
+        .attr("height", 10)
+        .attr("fill", "crimson");
+
+      legend.append("text")
+        .attr("x", 15)
+        .attr("y", 26)
+        .attr("dy", "0.75em")
+        .text("Forecasted");
+    }
+
+
+
+    // Example: Fetch data via AJAX and update MSE, MAE, and table
+    function fetchDataAndUpdate() {
+      // Make an AJAX call to the Flask endpoint or API to get updated data
+      d3.json('/get_hourly_data')
+        .then(function (data) {
+          // Parse dates in the received data
+          data.forEach(function (d) {
+            d.date = new Date(d.date);
+          });
+
+          // Update the chart with new data
+          createChart(data);
+
+          // Update MSE and MAE values
+          document.getElementById('mse-value').textContent = calculateMSE(data);  // Update with your MSE calculation logic
+          document.getElementById('mae-value').textContent = calculateMAE(data);  // Update with your MAE calculation logic
+
+          // Update the table
+          updateTable(data);
+        })
+        .catch(function (error) {
+          console.error('Error fetching data:', error);
+        });
+    }
+
+    // Example: Calculate MSE and MAE
+    function calculateMSE(data) {
+      let lastElement = data[data.length - 1];
+      // Implement your MAE calculation logic here
+      // This is just a placeholder
+      return lastElement.mse;
+    }
+
+    function calculateMAE(data) {
+      let lastElement = data[data.length - 1];
+      // Implement your MAE calculation logic here
+      // This is just a placeholder
+      return lastElement.mae;
+    }
+
+    // Example: Update the table with new data
+    function updateTable(data) {
+      const tableBody = d3.select('#data-table tbody');
+
+      // Remove existing rows
+      tableBody.selectAll('tr').remove();
+
+      // Append new rows
+      const rows = tableBody.selectAll('tr')
+        .data(data)
+        .enter()
+        .append('tr');
+
+      // Append cells to each row
+      rows.append('td').text(d => d.date.toLocaleString());  // Adjust date formatting as needed
+      rows.append('td').text(d => (d.actual !== null) ? d.actual.toFixed(2) : "");  // Adjust number formatting as needed
+      rows.append('td').text(d => d.forecasted.toFixed(2));  // Adjust number formatting as needed
+    }
+
+    // Initial fetch and update
+    fetchDataAndUpdate();
+
+    // Set up interval for periodic updates (adjust as needed)
+    setInterval(fetchDataAndUpdate, 60000);  // Update every minute
+  </script>
+
+</body>
+
+</html>
